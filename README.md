@@ -10,7 +10,7 @@ mcproxy is currently using following environment variables
 |-----------------------|---------|----------------|---------------------------------------------------------------------------------------------------|
 | OPT_LISTEN_PORT       | number  | 25565          | port on which proxy listens for incoming connections                                              |
 | OPT_BACKEND_PORT      | number  | 25566          | port on which underlying Minecraft server is listening                                            |
-| OPT_ACCEPT_HOST       | string  | (empty string) | hostname(s) which must be used when connecting to the server, use colon to set multiple hostnames |
+| OPT_ACCEPT_HOST       | string  | (empty string) | hostname(s) which must be used when connecting to the server, use comma to set multiple hostnames |
 | OPT_RATE_LIMIT        | number  | 16             | number of connections a client from single IP address can make                                    |
 | OPT_RATE_LIMIT_WINDOW | number  | 60000          | window size in ms to reset rate limit counter                                                     |
 | OPT_CONCURRENT_LIMIT  | number  | 4              | number of concurrent connections from single IP address proxy can accept                          |
