@@ -84,22 +84,20 @@ export class ProxySocket extends EventEmitter {
                 if (OPT_ACCEPT_HOST.includes(handshakePacket.address)) {
                     this._state = SocketState.FORWARD
                     clearTimeout(this._timeoutTimer)
-                    this._handleClientData(b)
+                    this._backend.write(this._handshakeBuffer)
+                    // release buffer reference
+                    this._handshakeBuffer = Buffer.from([])
                     this._pipe()
                 } else {
                     if (OPT_LOG_VERBOSE) console.warn(`[${this._tag()}] client used incorrect hostname: ${handshakePacket.address.substring(0, 16)}`)
                     this.close()
                 }
             }
-        } else if (this._state === SocketState.FORWARD) {
-            this._backend.write(b)
         }
     }
     
     private _handleServerData(b: Buffer) {
-        if (this._state === SocketState.FORWARD) {
-            this._client.write(b)
-        }
+        // unused
     }
     
     public close() {
@@ -107,6 +105,7 @@ export class ProxySocket extends EventEmitter {
         clearTimeout(this._timeoutTimer)
         this._client.resetAndDestroy()
         this._backend.resetAndDestroy()
+        this._handshakeBuffer = Buffer.from([])
     }
     
     public static from(s: Socket) {
