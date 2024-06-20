@@ -1,0 +1,16 @@
+{
+    "name": "mcproxy",
+    "version": "1.0.0",
+    "description": "",
+    "main": "index.js",
+    "scripts": {
+        "start": "tsx main.ts"
+    },
+    "devDependencies": {
+        "tsx": "^4.15.6",
+        "@types/node": "^20.14.6"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC"
+}
