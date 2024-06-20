@@ -2,14 +2,13 @@ import { Socket } from 'net'
 import { connect } from 'node:net'
 import EventEmitter from 'node:events'
 import { HandshakeProtocolPacket, ProtocolPacket } from './ProtocolPacket'
+import { OPT_ACCEPT_HOST, OPT_BACKEND_PORT, OPT_LOG_VERBOSE } from '../config'
 
 enum SocketState {
     HANDSHAKE,
     FORWARD,
     CLOSED
 }
-
-const ACCEPT_HOST = process.env.OPT_ACCEPT_HOST || ''
 
 export class ProxySocket extends EventEmitter {
     private readonly _client: Socket
@@ -21,17 +20,18 @@ export class ProxySocket extends EventEmitter {
     
     private constructor(socket: Socket) {
         super()
-        this._backend = connect({ host: '127.0.0.1', port: Number(process.env.OPT_BACKEND_PORT || 25566) })
+        this._backend = connect({ host: '127.0.0.1', port: OPT_BACKEND_PORT })
         const backendDataCallback = (b: Buffer) => this._handleServerData(b)
         this._backend.on('data', backendDataCallback)
         this._backend.on('error', () => {
             this._state = SocketState.CLOSED
             clearTimeout(this._timeoutTimer)
-            try { this._client.resetAndDestroy() } catch { }
+            this._client.resetAndDestroy()
         })
         this._backend.on('close', () => {
             this._state = SocketState.CLOSED
             clearTimeout(this._timeoutTimer)
+            this._client.resetAndDestroy()
         })
         this._client = socket
         const clientDataCallback = (b: Buffer) => this._handleClientData(b)
@@ -39,17 +39,18 @@ export class ProxySocket extends EventEmitter {
         this._client.on('error', () => {
             this._state = SocketState.CLOSED
             clearTimeout(this._timeoutTimer)
-            try { this._backend.resetAndDestroy() } catch { }
+            this._backend.resetAndDestroy()
         })
         this._client.on('close', () => {
             this._state = SocketState.CLOSED
             clearTimeout(this._timeoutTimer)
+            this._backend.resetAndDestroy()
         })
         this._state = SocketState.HANDSHAKE
         this._handshakeBuffer = Buffer.from([])
         this._timeoutTimer = setTimeout(() => {
             if (this._state === SocketState.HANDSHAKE) {
-                console.warn(`[${this._tag()}] Handshake timed out`)
+                if (OPT_LOG_VERBOSE) console.warn(`[${this._tag()}] Handshake timed out`)
                 this.close()
             }
         }, 5000)
@@ -68,22 +69,22 @@ export class ProxySocket extends EventEmitter {
     
     private _handleClientData(b: Buffer) {
         if (this._state === SocketState.HANDSHAKE) {
-            if ((this._handshakeBuffer.length + b.length) > 2097151) {
+            if ((this._handshakeBuffer.length + b.length) > 2048) {
                 this.close()
-                console.warn(`[${this._tag()}] client didn't send handshake packet within the first 2 MB`)
+                if (OPT_LOG_VERBOSE) console.warn(`[${this._tag()}] client didn't send handshake packet within the first 2 kB`)
             }
             this._handshakeBuffer = Buffer.concat([this._handshakeBuffer, b])
             
             const packet = ProtocolPacket.fromBuffer(this._handshakeBuffer)
             if (packet && (packet.packetID === 0x00)) {
                 const handshakePacket = packet as HandshakeProtocolPacket
-                if (handshakePacket.address === ACCEPT_HOST) {
+                if (OPT_ACCEPT_HOST.includes(handshakePacket.address)) {
                     this._state = SocketState.FORWARD
                     clearTimeout(this._timeoutTimer)
                     this._handleClientData(b)
                     this._pipe()
                 } else {
-                    console.warn(`[${this._tag()}] client used incorrect hostname: ${handshakePacket.address.substring(0, 16)}`)
+                    if (OPT_LOG_VERBOSE) console.warn(`[${this._tag()}] client used incorrect hostname: ${handshakePacket.address.substring(0, 16)}`)
                     this.close()
                 }
             }
@@ -101,8 +102,8 @@ export class ProxySocket extends EventEmitter {
     public close() {
         this._state = SocketState.CLOSED
         clearTimeout(this._timeoutTimer)
-        try { this._client.resetAndDestroy() } catch { }
-        try { this._backend.resetAndDestroy() } catch { }
+        this._client.resetAndDestroy()
+        this._backend.resetAndDestroy()
     }
     
     public static from(s: Socket) {
