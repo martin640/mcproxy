@@ -1,6 +1,6 @@
 import { Socket } from 'net'
-import { connect } from 'node:net'
-import EventEmitter from 'node:events'
+import { connect } from 'net'
+import EventEmitter from 'events'
 import { HandshakeProtocolPacket, ProtocolPacket } from './ProtocolPacket'
 import { OPT_ACCEPT_HOST, OPT_BACKEND_PORT, OPT_LOG_VERBOSE } from '../config'
 
@@ -20,6 +20,7 @@ export class ProxySocket extends EventEmitter {
     
     private constructor(socket: Socket) {
         super()
+        
         this._backend = connect({ host: '127.0.0.1', port: OPT_BACKEND_PORT })
         const backendDataCallback = (b: Buffer) => this._handleServerData(b)
         this._backend.on('data', backendDataCallback)
@@ -33,6 +34,7 @@ export class ProxySocket extends EventEmitter {
             clearTimeout(this._timeoutTimer)
             this._client.resetAndDestroy()
         })
+        
         this._client = socket
         const clientDataCallback = (b: Buffer) => this._handleClientData(b)
         this._client.on('data', clientDataCallback)
@@ -46,6 +48,7 @@ export class ProxySocket extends EventEmitter {
             clearTimeout(this._timeoutTimer)
             this._backend.resetAndDestroy()
         })
+        
         this._state = SocketState.HANDSHAKE
         this._handshakeBuffer = Buffer.from([])
         this._timeoutTimer = setTimeout(() => {

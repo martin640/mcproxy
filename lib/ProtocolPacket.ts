@@ -35,7 +35,7 @@ export class ProtocolPacket {
             value |= (currentByte & SEGMENT_BITS) << position
             if ((currentByte & CONTINUE_BIT) == 0) break
             position += 7
-            if (position >= 32) throw new Error("VarInt is too big")
+            if (position >= 32) throw new Error('VarInt is too big')
         }
         
         return value
@@ -50,7 +50,7 @@ export class ProtocolPacket {
             value |= (currentByte & SEGMENT_BITS) << position
             if ((currentByte & CONTINUE_BIT) == 0) break
             position += 7
-            if (position >= 64) throw new Error("VarLong is too big")
+            if (position >= 64) throw new Error('VarLong is too big')
         }
         
         return value
@@ -76,11 +76,11 @@ export class ProtocolPacket {
             let currentByte = 0
             
             while (true) {
-                currentByte = readByte();
-                value |= (currentByte & SEGMENT_BITS) << position;
-                if ((currentByte & CONTINUE_BIT) == 0) break;
-                position += 7;
-                if (position >= 32) throw new Error("VarInt is too big");
+                currentByte = readByte()
+                value |= (currentByte & SEGMENT_BITS) << position
+                if ((currentByte & CONTINUE_BIT) == 0) break
+                position += 7
+                if (position >= 32) throw new Error('VarInt is too big')
             }
             
             return value;
