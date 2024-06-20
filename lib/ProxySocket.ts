@@ -89,7 +89,8 @@ export class ProxySocket extends EventEmitter {
                     this._handshakeBuffer = Buffer.from([])
                     this._pipe()
                 } else {
-                    if (OPT_LOG_VERBOSE) console.warn(`[${this._tag()}] client used incorrect hostname: ${handshakePacket.address.substring(0, 16)}`)
+                    const hostEscaped = handshakePacket.address.substring(0, 16).replace(/[\u0000-\u001F\u007F-\u009F]/g, '')
+                    if (OPT_LOG_VERBOSE) console.warn(`[${this._tag()}] client used incorrect hostname: ${hostEscaped}`)
                     this.close()
                 }
             }
