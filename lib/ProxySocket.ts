@@ -13,20 +13,21 @@ const ACCEPT_HOST = process.env.OPT_ACCEPT_HOST || ''
 
 export class ProxySocket extends EventEmitter {
     private readonly _client: Socket
-    private _backend: Socket
+    private readonly _backend: Socket
     private readonly _timeoutTimer: NodeJS.Timeout
     private _state: SocketState
     private _handshakeBuffer: Buffer
-    private _pipe: () => void
+    private readonly _pipe: () => void
     
     private constructor(socket: Socket) {
         super()
-        this._backend = connect({ host: '127.0.0.1', port: Number(process.env.OPT_BACKEND_PORT || 25566), allowHalfOpen: true })
+        this._backend = connect({ host: '127.0.0.1', port: Number(process.env.OPT_BACKEND_PORT || 25566) })
         const backendDataCallback = (b: Buffer) => this._handleServerData(b)
         this._backend.on('data', backendDataCallback)
         this._backend.on('error', () => {
             this._state = SocketState.CLOSED
             clearTimeout(this._timeoutTimer)
+            try { this._client.resetAndDestroy() } catch { }
         })
         this._backend.on('close', () => {
             this._state = SocketState.CLOSED
@@ -38,6 +39,7 @@ export class ProxySocket extends EventEmitter {
         this._client.on('error', () => {
             this._state = SocketState.CLOSED
             clearTimeout(this._timeoutTimer)
+            try { this._backend.resetAndDestroy() } catch { }
         })
         this._client.on('close', () => {
             this._state = SocketState.CLOSED
