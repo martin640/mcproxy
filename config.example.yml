@@ -1,12 +1,3 @@
-# mcproxy
-
-mcproxy is a simple proxy service for Minecraft
-
-## Configuration
-
-example configuration in config.yml:
-
-```yaml
 settings:
   cache-size: 1024 # maximum number of entries in limiting counters
   handshake-timeout: 3 # close connection if client doesn't send handshake packet within 3 seconds
@@ -36,11 +27,3 @@ endpoints:
 
 blocklist:
   - 192.168.1.5 # block ip from all endpoints
-```
-
-## Installation
-
-1. install dependencies with `npm i`
-2. create a configuration file `config.yml` and edit it to your needs
-3. start service with `npm run start`
-4. that's it ^^
