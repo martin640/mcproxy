@@ -6,7 +6,7 @@ import { logEvent } from './lib/Logger'
 let openSockets: Socket[] = []
 let connectionIpCounter: [ string, number, number ][] = []
 
-const server = new Server()
+const server = new Server({ noDelay: true })
 server.on('connection', socket => {
     if (!socket.remoteAddress) {
         socket.resetAndDestroy()
@@ -45,10 +45,10 @@ server.on('connection', socket => {
         } else {
             openSockets.push(socket)
             const proxySocket = ProxySocket.from(socket)
-            if (OPT_LOG_VERBOSE || OPT_LOG_CONNECTIONS) logEvent(proxySocket, 'peer connected')
+            if (OPT_LOG_CONNECTIONS) logEvent(proxySocket, 'peer connected')
             socket.on('close', () => {
                 openSockets = openSockets.filter(x => x !== socket)
-                if (OPT_LOG_VERBOSE || OPT_LOG_CONNECTIONS) logEvent(proxySocket, 'peer disconnected')
+                if (OPT_LOG_CONNECTIONS) logEvent(proxySocket, 'peer disconnected')
             })
         }
     }

@@ -1,5 +1,5 @@
 import { Socket, connect } from 'net'
-import { config, EndpointSchema, OPT_LOG_VERBOSE } from '../config'
+import { config, EndpointSchema, OPT_LOG_DEBUG, OPT_LOG_VERBOSE } from '../config'
 import { logEvent } from './Logger'
 import { HandshakeIncomingPacket } from './protocol/in/HandshakeIncomingPacket'
 import { HandshakeOutgoingPacket } from './protocol/out/HandshakeOutgoingPacket'
@@ -7,7 +7,9 @@ import { StatusResponseOutgoingPacket } from './protocol/out/StatusResponseOutgo
 import { PingResponseOutgoingPacket } from './protocol/out/PingResponseOutgoingPacket'
 import { PingRequestIncomingPacket } from './protocol/in/PingRequestIncomingPacket'
 import { DisconnectOutgoingPacket } from './protocol/out/DisconnectOutgoingPacket'
-import { parseIncomingPacket } from './protocol/in/parser'
+import { IncomingPacketParseResult, parseIncomingPacket } from './protocol/in/parser'
+import { IncomingPacket } from './protocol/in/IncomingPacket'
+import { OutgoingPacket } from './protocol/out/OutgoingPacket'
 
 enum SocketState {
     HANDSHAKE,
@@ -23,12 +25,14 @@ export class ProxySocket {
     
     private _state: SocketState
     private _endpoint: EndpointSchema | undefined
+    private _version: number
     private _buffer: Buffer
     private readonly _timeoutTimer: NodeJS.Timeout
     private readonly _unregisterClientCallbacks: () => void
     
     private constructor(socket: Socket) {
         this._client = socket
+        this._client.setNoDelay(true)
         const clientDataCallback = this._handleClientData.bind(this)
         this._client.on('data', clientDataCallback)
         this._client.on('error', e => {
@@ -43,17 +47,18 @@ export class ProxySocket {
         }
         
         this._state = SocketState.HANDSHAKE
+        this._version = 0
         this._buffer = Buffer.from([])
         this._timeoutTimer = setTimeout(() => {
             if (this._state === SocketState.HANDSHAKE) {
                 if (OPT_LOG_VERBOSE) logEvent(this, 'Handshake timed out')
                 this.close()
             }
-        }, 5000)
+        }, config.handshakeTimeout)
     }
     
     private _handleClientData(b: Buffer) {
-        if (OPT_LOG_VERBOSE) logEvent(this, `received ${b.length} B chunk`)
+        if (OPT_LOG_DEBUG) logEvent(this, `received ${b.length} B chunk: ${b.toString('hex')}`)
         
         if (this._state === SocketState.HANDSHAKE || this._state === SocketState.STATUS) {
             if ((this._buffer.length + b.length) > config.handshakeBufferLimit) {
@@ -62,30 +67,50 @@ export class ProxySocket {
                 return
             }
             this._buffer = Buffer.concat([this._buffer, b])
+            
+            while (this._buffer.length > 0) {
+                let parseResult: IncomingPacketParseResult
+                try {
+                    if (this._state === SocketState.HANDSHAKE) parseResult = parseIncomingPacket(this._buffer, 0)
+                    else if (this._state === SocketState.STATUS) parseResult = parseIncomingPacket(this._buffer, 1)
+                    else if (this._state === SocketState.LOGIN) parseResult = parseIncomingPacket(this._buffer, 2)
+                    else break
+                } catch (e) {
+                    if ((e as Error).message && OPT_LOG_DEBUG) {
+                        if (OPT_LOG_VERBOSE) logEvent(this, `failed to parse packet: ${(e as Error).message}`)
+                    }
+                    break
+                }
+                const { packet, end } = parseResult
+                this._buffer = this._buffer.subarray(end) // shift buffer
+                this._handleClientPacket(packet)
+            }
         }
-        
+    }
+    
+    private _handleClientPacket(packet: IncomingPacket) {
         if (this._state === SocketState.HANDSHAKE) {
-            const packet = parseIncomingPacket(this._buffer, 0)
-            if (packet && (packet.id === 0x00)) {
+            if (packet.id === 0x00) {
                 const handshakePacket = packet as HandshakeIncomingPacket
                 const endpoint = config.endpoints.find(x => x.host === handshakePacket.address) || config.endpoints.find(x => x.name === '_default')
                 if (endpoint) {
                     this._endpoint = endpoint
-                    this._state = SocketState.FORWARD
+                    this._version = handshakePacket.version
                     clearTimeout(this._timeoutTimer)
                     
                     if (endpoint.backend) {
-                        if (endpoint.rewrite) {
-                            this._buffer = new HandshakeOutgoingPacket(
-                                handshakePacket.version,
-                                endpoint.rewrite,
-                                handshakePacket.port,
-                                handshakePacket.nextState
-                            ).toBuffer()
-                        }
-                        
                         const endpointAddress = endpoint.backend.split(':', 2)
-                        this._backend = connect({ host: endpointAddress[0], port: Number(endpointAddress[1]), timeout: 2000 })
+                        this._state = SocketState.FORWARD
+                        const forwardPacket = new HandshakeOutgoingPacket(
+                            handshakePacket.version,
+                            endpoint.rewrite || handshakePacket.address,
+                            Number(endpointAddress[1] || '25565'),
+                            handshakePacket.nextState
+                        )
+                        
+                        if (OPT_LOG_DEBUG) logEvent(this, `connecting to the backend ${endpoint.backend}`)
+                        this._client.pause()
+                        this._backend = connect({ host: endpointAddress[0], port: Number(endpointAddress[1] || '25565'), timeout: 5000, noDelay: true })
                         this._backend.on('error', e => {
                             if (OPT_LOG_VERBOSE) logEvent(this, `${e.message} (error caused by backend socket)`)
                             this.close()
@@ -95,12 +120,17 @@ export class ProxySocket {
                         })
                         this._backend.on('connect', () => {
                             if (!this._backend || this._state !== SocketState.FORWARD) return
+                            if (OPT_LOG_DEBUG) logEvent(this, `backend connected, waiting buffer: ${this._client.writableLength}`)
                             this._unregisterClientCallbacks()
                             this._backend.pipe(this._client)
                             this._client.pipe(this._backend)
+                            this._backend.write(forwardPacket.toBuffer())
                             this._backend.write(this._buffer)
-                            // release buffer reference
-                            this._buffer = Buffer.from([])
+                            this._client.resume()
+                        })
+                        this._backend.on('timeout', () => {
+                            if (OPT_LOG_VERBOSE) logEvent(this, 'connection to the backend server timed out')
+                            this.close()
                         })
                     } else {
                         if (handshakePacket.nextState === 1) { // status
@@ -109,7 +139,6 @@ export class ProxySocket {
                             this._state = SocketState.LOGIN
                         }
                     }
-                    
                 } else {
                     const hostEscaped = handshakePacket.address.substring(0, 16).replace(/[\u0000-\u001F\u007F-\u009F]/g, '')
                     if (OPT_LOG_VERBOSE) logEvent(this, `unknown hostname: ${hostEscaped}`)
@@ -117,35 +146,38 @@ export class ProxySocket {
                 }
             }
         } else if (this._state === SocketState.STATUS) {
-            const packet = parseIncomingPacket(this._buffer, 1)
-            if (packet) {
-                if (packet.id === 0x00) {
-                    this._client.write(new StatusResponseOutgoingPacket({
-                        version: {
-                            name: this._endpoint?.version || '',
-                            protocol: 762
-                        },
-                        players: {
-                            max: 1,
-                            online: 0,
-                            sample: []
-                        },
-                        description: {
-                            text: this._endpoint?.motd || ''
-                        },
-                        favicon: '',
-                        enforcesSecureChat: false,
-                        previewsChat: false,
-                    }).toBuffer())
-                } else if (packet.id === 0x01) {
-                    this._client.write(new PingResponseOutgoingPacket(packet as PingRequestIncomingPacket).toBuffer())
-                }
+            if (packet.id === 0x00) {
+                this._send(new StatusResponseOutgoingPacket({
+                    version: {
+                        name: this._endpoint?.version || '',
+                        protocol: this._version
+                    },
+                    players: {
+                        max: 1,
+                        online: 0,
+                        sample: []
+                    },
+                    description: {
+                        text: this._endpoint?.motd || ''
+                    },
+                    favicon: '',
+                    enforcesSecureChat: false,
+                    previewsChat: false,
+                }))
+            } else if (packet.id === 0x01) {
+                this._send(new PingResponseOutgoingPacket(packet as PingRequestIncomingPacket))
             }
         } else if (this._state === SocketState.LOGIN) {
-            this._client.write(new DisconnectOutgoingPacket(this._endpoint?.message || 'Disconnected').toBuffer(), () => {
+            this._send(new DisconnectOutgoingPacket(this._endpoint?.message || 'Disconnected'), () => {
                 this.close()
             })
         }
+    }
+    
+    private _send(p: OutgoingPacket, cb?: () => void) {
+        const b = p.toBuffer()
+        if (OPT_LOG_DEBUG) logEvent(this, `sending ${b.length} B chunk: ${b.toString('hex')}`)
+        this._client.write(b, cb)
     }
     
     public close() {

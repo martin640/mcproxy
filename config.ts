@@ -20,7 +20,7 @@ interface ConfigYamlSchema {
         'concurrent-limit'?: number
         'clients-limit'?: number
         listen?: number
-        log?: 'none' | 'connection' | 'verbose'
+        log?: 'none' | 'connection' | 'verbose' | 'debug'
     }
     endpoints?: {
         [name: string]: EndpointYamlSchema
@@ -40,7 +40,7 @@ export interface EndpointSchema {
 
 export interface ConfigSchema {
     listen: number
-    log: 'none' | 'connection' | 'verbose'
+    log: 'none' | 'connection' | 'verbose' | 'debug'
     cacheSize: number
     handshakeTimeout: number
     handshakeBufferLimit: number
@@ -89,5 +89,6 @@ export const config: ConfigSchema = (() => {
     return Object.freeze(config)
 })()
 
-export const OPT_LOG_CONNECTIONS = config.log === 'connection'
-export const OPT_LOG_VERBOSE = config.log === 'verbose'
+export const OPT_LOG_DEBUG = config.log === 'debug'
+export const OPT_LOG_VERBOSE = OPT_LOG_DEBUG || (config.log === 'verbose')
+export const OPT_LOG_CONNECTIONS = OPT_LOG_DEBUG || (config.log === 'connection')
