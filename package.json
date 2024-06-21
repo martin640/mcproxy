@@ -1,8 +1,8 @@
 {
     "name": "mcproxy",
     "version": "1.0.0",
-    "description": "",
-    "main": "index.js",
+    "description": "Lightweight customizable Minecraft proxy",
+    "main": "main.ts",
     "scripts": {
         "start": "tsx main.ts"
     },
@@ -13,7 +13,7 @@
         "tsx": "^4.15.6",
         "@types/node": "^20.14.6"
     },
-    "keywords": [],
-    "author": "",
-    "license": "ISC"
+    "keywords": ["minecraft", "spigot", "bukkit", "proxy"],
+    "author": "Martin Matejov",
+    "license": "MIT"
 }
