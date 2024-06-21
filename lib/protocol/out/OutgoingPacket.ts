@@ -27,6 +27,28 @@ export class VariableWriteableBuffer {
         this._data.push(value)
     }
     
+    public writeLong(value: bigint) {
+        // modified buffer.writeBigU_Int64BE() from node.js source code
+        let lo = Number(value & 0xffffffffn)
+        const offset = this._data.length
+        this._data.push(0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00)
+        this._data[offset + 7] = lo
+        lo = lo >> 8
+        this._data[offset + 6] = lo
+        lo = lo >> 8
+        this._data[offset + 5] = lo
+        lo = lo >> 8
+        this._data[offset + 4] = lo
+        let hi = Number(value >> 32n & 0xffffffffn)
+        this._data[offset + 3] = hi
+        hi = hi >> 8
+        this._data[offset + 2] = hi
+        hi = hi >> 8
+        this._data[offset + 1] = hi
+        hi = hi >> 8
+        this._data[offset] = hi
+    }
+    
     public writeString(value: string): number {
         let bytes = 0
         const b = Buffer.from(value, 'utf-8')

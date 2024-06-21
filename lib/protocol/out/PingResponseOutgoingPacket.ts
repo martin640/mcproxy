@@ -2,15 +2,15 @@ import { OutgoingPacket } from './OutgoingPacket'
 import { PingRequestIncomingPacket } from '../in/PingRequestIncomingPacket'
 
 export class PingResponseOutgoingPacket extends OutgoingPacket {
-    private readonly _payload: number
+    private readonly _payload: bigint
     
-    constructor(v: number | PingRequestIncomingPacket) {
+    constructor(v: bigint | PingRequestIncomingPacket) {
         super(0x01)
-        this._payload = typeof v === 'number' ? v : v.payload
-        this._raw.writeVarInt(this._payload)
+        this._payload = typeof v === 'bigint' ? v : v.payload
+        this._raw.writeLong(this._payload)
     }
     
-    public get payload(): number {
+    public get payload(): bigint {
         return this._payload
     }
 }

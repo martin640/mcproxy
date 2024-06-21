@@ -72,6 +72,11 @@ export class CursoredBuffer {
         return this._buffer.readUintBE(this._cursor - 2, 2)
     }
     
+    public readLong(): bigint {
+        this._cursor += 8
+        return this._buffer.readBigInt64BE(this._cursor - 8)
+    }
+    
     public readString(): string {
         const length = this.readVarInt()
         if (length) {

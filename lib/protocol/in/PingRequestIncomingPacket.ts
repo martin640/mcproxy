@@ -1,14 +1,14 @@
 import { IncomingPacket } from './IncomingPacket'
 
 export class PingRequestIncomingPacket extends IncomingPacket {
-    private readonly _payload: number
+    private readonly _payload: bigint
     
     constructor(length: number, id: number, raw: Buffer) {
         super(length, id, raw)
-        this._payload = this._raw.readVarLong()
+        this._payload = this._raw.readLong()
     }
     
-    public get payload(): number {
+    public get payload(): bigint {
         return this._payload
     }
 }
