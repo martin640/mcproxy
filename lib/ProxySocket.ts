@@ -120,7 +120,7 @@ export class ProxySocket {
                         })
                         this._backend.on('connect', () => {
                             if (!this._backend || this._state !== SocketState.FORWARD) return
-                            if (OPT_LOG_DEBUG) logEvent(this, `backend connected, waiting buffer: ${this._client.writableLength}`)
+                            if (OPT_LOG_DEBUG) logEvent(this, `backend connected, waiting buffer: ${this._client.writableLength + this._buffer.length} bytes`)
                             this._unregisterClientCallbacks()
                             this._backend.pipe(this._client)
                             this._client.pipe(this._backend)
