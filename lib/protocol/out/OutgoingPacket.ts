@@ -1,3 +1,5 @@
+import { IncomingPacket } from '../in/IncomingPacket'
+
 const SEGMENT_BITS = 0x7F
 const CONTINUE_BIT = 0x80
 
@@ -65,8 +67,8 @@ export class VariableWriteableBuffer {
         return value.length
     }
     
-    public write(value: VariableWriteableBuffer | number[]): number {
-        if (Array.isArray(value)) {
+    public write(value: VariableWriteableBuffer | Buffer | number[]): number {
+        if (Array.isArray(value) || Buffer.isBuffer(value)) {
             this._data.push(...value)
             return value.length
         } else {
@@ -107,3 +109,12 @@ export class OutgoingPacket {
         return bytes.toBuffer()
     }
 }
+
+class IncomingPacketCopyOutgoingPacket extends OutgoingPacket {
+    constructor(p: IncomingPacket) {
+        super(p.id)
+        this._raw.write(p.raw)
+    }
+}
+
+export const copyIncomingPacketAsOutgoing = (p: IncomingPacket): OutgoingPacket => new IncomingPacketCopyOutgoingPacket(p)
