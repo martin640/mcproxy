@@ -14,8 +14,8 @@ export const parseIncomingPacket = (b: Buffer, state: number): IncomingPacketPar
     const length = reader.readVarInt() 
     let position = reader.position
     const id = reader.readVarInt()
-    if (b.length < reader.position + length - position) throw new Error(`Expected buffer of size >= ${reader.position + length - position}, got ${b.length}`)
-    const raw = b.subarray(reader.position, reader.position + length - position)
+    if (b.length < (position + length)) throw new Error(`Expected buffer of size >= ${position + length}, got ${b.length}`)
+    const raw = b.subarray(reader.position, position + length)
     let packet: IncomingPacket | null = null
     
     if (state === 0) {
