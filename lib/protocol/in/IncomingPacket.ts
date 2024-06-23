@@ -107,4 +107,8 @@ export class IncomingPacket {
     public get id(): number {
         return this._id
     }
+    
+    public get raw(): Buffer {
+        return this._raw.buffer
+    }
 }
