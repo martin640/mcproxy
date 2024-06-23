@@ -1,7 +1,7 @@
 {
     "name": "mcproxy",
     "version": "1.0.0",
-    "description": "Lightweight customizable Minecraft proxy",
+    "description": "Lightweight customizable Minecraft reverse proxy",
     "main": "main.ts",
     "scripts": {
         "start": "tsx main.ts"

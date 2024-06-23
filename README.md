@@ -1,6 +1,6 @@
 # mcproxy
 
-mcproxy is a simple proxy service for Minecraft
+mcproxy is a simple reverse proxy for Minecraft
 
 ## Configuration
 
