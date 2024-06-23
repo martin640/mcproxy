@@ -54,7 +54,7 @@ export class ProxySocket {
                 if (OPT_LOG_VERBOSE) logEvent(this, 'Handshake timed out')
                 this.close()
             }
-        }, config.handshakeTimeout)
+        }, config.handshakeTimeout * 1000)
     }
     
     private _handleClientData(b: Buffer) {

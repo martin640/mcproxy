@@ -28,7 +28,7 @@ server.on('connection', socket => {
         return
     }
     
-    connectionIpCounter = connectionIpCounter.filter(x => x[2] > (Date.now() - config.rateLimitWindow))
+    connectionIpCounter = connectionIpCounter.filter(x => x[2] > (Date.now() - (config.rateLimitWindow * 1000)))
     const counter = connectionIpCounter.find(x => x[0] === address)
     
     if ((counter?.[1] || 0) >= config.rateLimit) {
