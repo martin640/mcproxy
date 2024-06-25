@@ -1,9 +1,8 @@
 settings:
   cache-size: 1024 # maximum entries in rate-limiter cache
   handshake-timeout: 3 # time in seconds to wait for a handshake packet from client
-  handshake-buffer-limit: 64 # close connection if client doesn't send expected data within the first 64 bytes
-  backend-timeout: 3 # time in seconds to wait for an expected data from the backend
-  backend-buffer-limit: 2048 # close connection if backend doesn't send expected data within the first 2048 bytes
+  client-buffer-limit: 64 # close connection if client doesn't send expected data within the first 64 bytes
+  backend-buffer-limit: 4096 # close connection if backend doesn't send expected data within the first 4096 bytes
   rate-limit-window: 60 # reset rate limit counter after 60 seconds
   rate-limit: 5 # allow max 5 connections from single IP address within rate-limit-window
   concurrent-limit: 5 # allow max 5 concurrent connections from single IP address

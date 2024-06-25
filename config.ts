@@ -76,7 +76,7 @@ interface ConfigYamlSchema {
          *
          * default: 1024
          */
-        'handshake-buffer-limit'?: number
+        'client-buffer-limit'?: number
         
         /**
          * maximum number of packets to accept from the client
@@ -85,14 +85,6 @@ interface ConfigYamlSchema {
          * default: 8
          */
         'client-packets-limit'?: number
-        
-        /**
-         * time in seconds to wait for an expected data from the backend in context of intercepting and altering data
-         * failure to receive data will result in both ends (client and backend) being closed with TCP FIN
-         *
-         * default: 5
-         */
-        'backend-timeout'?: number
         
         /**
          * maximum bytes to read from the backend waiting for expected data in context of intercepting and altering data
@@ -183,9 +175,8 @@ export interface ConfigSchema {
     logInspectBufferLimit: number
     cacheSize: number
     handshakeTimeout: number
-    handshakeBufferLimit: number
+    clientBufferLimit: number
     clientPacketsLimit: number
-    backendTimeout: number
     backendBufferLimit: number
     rateLimitWindow: number
     rateLimit: number
@@ -206,9 +197,8 @@ export const config: ConfigSchema = (() => {
         logInspectBufferLimit: numericDefault(configYaml.settings?.['log-inspect-buffer-limit'], 1024),
         cacheSize: configYaml.settings?.['cache-size'] || 1024,
         handshakeTimeout: configYaml.settings?.['handshake-timeout'] || 5,
-        handshakeBufferLimit: configYaml.settings?.['handshake-buffer-limit'] || 1024,
+        clientBufferLimit: configYaml.settings?.['client-buffer-limit'] || 1024,
         clientPacketsLimit: numericDefault(configYaml.settings?.['client-packets-limit'], 8),
-        backendTimeout: configYaml.settings?.['backend-timeout'] || 5,
         backendBufferLimit: configYaml.settings?.['backend-buffer-limit'] || 2048, // todo: if icon is used, status payload may be bigger
         rateLimitWindow: configYaml.settings?.['rate-limit-window'] || 60,
         rateLimit: configYaml.settings?.['rate-limit'] || 10,
