@@ -41,12 +41,13 @@ export class ProxySocket {
     private _version: number
     private _clientBuffer: Buffer
     private _backendBuffer: Buffer
+    private _clientBufferOffset: number
+    private _backendBufferOffset: number
     private _clientPackets: number
     private readonly _clientDataCallback: (_: Buffer) => void
     private readonly _backendDataCallback: (_: Buffer) => void
     
     private readonly _clientTimeoutTimer: NodeJS.Timeout
-    private readonly _backendTimeoutTimer: NodeJS.Timeout
     private readonly _closureTimeoutTimer: NodeJS.Timeout
     
     private constructor(socket: Socket) {
@@ -63,8 +64,10 @@ export class ProxySocket {
         
         this._state = SocketState.HANDSHAKE
         this._version = 0
-        this._clientBuffer = Buffer.from([])
-        this._backendBuffer = Buffer.from([])
+        this._clientBuffer = Buffer.alloc(config.clientBufferLimit)
+        this._backendBuffer = Buffer.alloc(config.backendBufferLimit)
+        this._clientBufferOffset = 0
+        this._backendBufferOffset = 0
         this._clientPackets = 0
         
         this._clientTimeoutTimer = setTimeout(() => {
@@ -73,11 +76,6 @@ export class ProxySocket {
                 this.switchToState(SocketState.CLOSED)
             }
         }, config.handshakeTimeout * 1000)
-        
-        this._backendTimeoutTimer = setTimeout(() => {
-            if (OPT_LOG_VERBOSE) logEvent(this, 'Backend timed out')
-            this.switchToState(SocketState.CLOSED)
-        }, config.backendTimeout * 1000)
         
         this._closureTimeoutTimer = setTimeout(() => {
             this._checkClosed()
@@ -95,8 +93,8 @@ export class ProxySocket {
         }
         
         if (this._state !== SocketState.FORWARD && this._state !== SocketState.CLOSING && this._state !== SocketState.CLOSED) {
-            if ((this._clientBuffer.length + b.length) > config.handshakeBufferLimit) {
-                if (OPT_LOG_VERBOSE) logEvent(this, `(C) client didn't send handshake packet within the first ${config.handshakeBufferLimit} bytes`)
+            if ((this._clientBufferOffset + b.length) > config.clientBufferLimit) {
+                if (OPT_LOG_VERBOSE) logEvent(this, `(C) client didn't send handshake packet within the first ${config.clientBufferLimit} bytes`)
                 this.switchToState(SocketState.CLOSED)
                 return
             }
@@ -105,9 +103,10 @@ export class ProxySocket {
                 this.switchToState(SocketState.CLOSED)
                 return
             }
-            this._clientBuffer = Buffer.concat([this._clientBuffer, b])
+            b.copy(this._clientBuffer, this._clientBufferOffset)
+            this._clientBufferOffset += b.length
             
-            while (this._clientBuffer.length > 0) {
+            while (this._clientBufferOffset > 0) {
                 let parseResult: IncomingPacketParseResult
                 try {
                     if (this._state === SocketState.HANDSHAKE) parseResult = parseIncomingPacket(this._clientBuffer, 0, IncomingPacketSource.CLIENT)
@@ -121,7 +120,9 @@ export class ProxySocket {
                     break
                 }
                 const { packet, end } = parseResult
-                this._clientBuffer = this._clientBuffer.subarray(end) // shift buffer
+                this._clientBuffer.copyWithin(0, end) // move data to the left
+                this._clientBufferOffset -= end
+                this._clientBuffer.fill(0x00, this._clientBufferOffset)
                 this._clientPackets++
                 this._handleClientPacket(packet)
             }
@@ -137,14 +138,15 @@ export class ProxySocket {
         }
         
         if (this._state !== SocketState.FORWARD && this._state !== SocketState.CLOSING && this._state !== SocketState.CLOSED) {
-            if ((this._backendBuffer.length + b.length) > config.backendBufferLimit) {
+            if ((this._backendBufferOffset + b.length) > config.backendBufferLimit) {
                 if (OPT_LOG_VERBOSE) logEvent(this, `(B) backend didn't send the expected data within the first ${config.backendBufferLimit} bytes`)
                 this.switchToState(SocketState.CLOSED)
                 return
             }
-            this._backendBuffer = Buffer.concat([this._backendBuffer, b])
+            b.copy(this._backendBuffer, this._backendBufferOffset)
+            this._backendBufferOffset += b.length
             
-            while (this._backendBuffer.length > 0) {
+            while (this._backendBufferOffset > 0) {
                 let parseResult: IncomingPacketParseResult
                 try {
                     if (this._state === SocketState.STATUS) parseResult = parseIncomingPacket(this._backendBuffer, 1, IncomingPacketSource.BACKEND)
@@ -156,7 +158,9 @@ export class ProxySocket {
                     break
                 }
                 const { packet, end } = parseResult
-                this._backendBuffer = this._backendBuffer.subarray(end) // shift buffer
+                this._backendBuffer.copyWithin(0, end) // move data to the left
+                this._backendBufferOffset = 0
+                this._backendBuffer.fill(0x00, this._backendBufferOffset)
                 this._handleBackendPacket(packet)
             }
         }
@@ -199,7 +203,7 @@ export class ProxySocket {
                         this._backend.on('close', () => this._checkClosed())
                         this._backend.on('connect', () => {
                             if (!this._backend) return
-                            if (OPT_LOG_DEBUG) logEvent(this, `backend connected, waiting buffer: ${this._client.writableLength + this._clientBuffer.length} bytes`)
+                            if (OPT_LOG_DEBUG) logEvent(this, `backend connected, waiting buffer: ${this._client.writableLength + this._clientBufferOffset} bytes`)
                             this._sendToBackend(forwardPacket) // write modified handshake packet
                             this.switchToState(nextState) // other pending packets are processed here
                         })
@@ -330,12 +334,11 @@ export class ProxySocket {
                 
                 switchAndLog()
                 clearTimeout(this._clientTimeoutTimer)
-                clearTimeout(this._backendTimeoutTimer)
                 clearTimeout(this._closureTimeoutTimer)
                 this._unregisterCallbacks()
                 this._backend.pipe(this._client)
                 this._client.pipe(this._backend)
-                this._backend.write(this._clientBuffer)
+                this._backend.write(this._clientBuffer.subarray(0, this._clientBufferOffset))
                 if (this._clientBuffer.length) this._clientBuffer = Buffer.from([])
                 break
             }
@@ -348,7 +351,7 @@ export class ProxySocket {
                     // reading from the client is not needed anymore
                     this._unregisterClientCallbacks()
                     this._client.pipe(this._backend)
-                    this._backend.write(this._clientBuffer)
+                    this._backend.write(this._clientBuffer.subarray(0, this._clientBufferOffset))
                     if (this._clientBuffer.length) this._clientBuffer = Buffer.from([])
                 }
                 switchAndLog()
@@ -358,7 +361,6 @@ export class ProxySocket {
             case SocketState.CLOSING: {
                 switchAndLog()
                 clearTimeout(this._clientTimeoutTimer)
-                clearTimeout(this._backendTimeoutTimer)
                 this._unregisterCallbacks()
                 
                 this._client.end()
@@ -373,7 +375,6 @@ export class ProxySocket {
             case SocketState.CLOSED: {
                 switchAndLog()
                 clearTimeout(this._clientTimeoutTimer)
-                clearTimeout(this._backendTimeoutTimer)
                 clearTimeout(this._closureTimeoutTimer)
                 this._unregisterCallbacks()
                 
