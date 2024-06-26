@@ -8,15 +8,16 @@ example configuration in config.yml:
 
 ```yaml
 settings:
-  cache-size: 1024 # maximum number of entries in limiting counters
-  handshake-timeout: 3 # close connection if client doesn't send handshake packet within 3 seconds
-  handshake-buffer-limit: 64 # close connection if client doesn't send handshake packet within first 64 bytes of data
+  cache-size: 1024 # maximum entries in rate-limiter cache
+  handshake-timeout: 3 # time in seconds to wait for a handshake packet from client
+  client-buffer-limit: 64 # close connection if client doesn't send expected data within the first 64 bytes
+  backend-buffer-limit: 4096 # close connection if backend doesn't send expected data within the first 4096 bytes
   rate-limit-window: 60 # reset rate limit counter after 60 seconds
   rate-limit: 5 # allow max 5 connections from single IP address within rate-limit-window
   concurrent-limit: 5 # allow max 5 concurrent connections from single IP address
   clients-limit: 200 # allow max total 200 concurrent connections
   listen: 25565
-  log: verbose
+  log: connection
 
 endpoints:
   server1:
@@ -25,6 +26,7 @@ endpoints:
   server2:
     host: mc2.example.com
     backend: 127.0.0.1:3001
+    motd: This is rewritten motd, {players} players online
   server2alias:
     host: coolserver.com
     rewrite: mc2.example.com # modify hostname in the handshake packet, mcproxy automatically resolves backend address from the referenced endpoint
