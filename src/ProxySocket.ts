@@ -36,6 +36,7 @@ export class ProxySocket {
     private readonly _client: Socket
     private _backend: Socket | undefined
     
+    private readonly _timeStarted: number
     private _state: SocketState
     private _endpoint: EndpointSchema | undefined
     private _version: number
@@ -50,7 +51,7 @@ export class ProxySocket {
     private readonly _clientTimeoutTimer: NodeJS.Timeout
     private readonly _closureTimeoutTimer: NodeJS.Timeout
     
-    private constructor(socket: Socket) {
+    public constructor(socket: Socket, timeStarted: number = performance.now()) {
         this._clientDataCallback = this._handleClientData.bind(this)
         this._backendDataCallback = this._handleBackendData.bind(this)
         this._client = socket
@@ -62,6 +63,7 @@ export class ProxySocket {
         })
         this._client.on('close', () => this._checkClosed())
         
+        this._timeStarted = timeStarted
         this._state = SocketState.HANDSHAKE
         this._version = 0
         this._clientBuffer = Buffer.alloc(config.clientBufferLimit)
@@ -399,6 +401,10 @@ export class ProxySocket {
         return this._backend
     }
     
+    public get timeStarted(): number {
+        return this._timeStarted
+    }
+    
     public get state(): SocketState {
         return this._state
     }
@@ -409,9 +415,5 @@ export class ProxySocket {
     
     public get endpoint(): EndpointSchema | undefined {
         return this._endpoint
-    }
-    
-    public static from(s: Socket) {
-        return new ProxySocket(s)
     }
 }

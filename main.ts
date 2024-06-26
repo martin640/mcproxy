@@ -8,6 +8,7 @@ let connectionIpCounter: [ string, number, number ][] = []
 
 const server = new Server({ noDelay: true })
 server.on('connection', socket => {
+    const now = performance.now()
     if (!socket.remoteAddress) {
         socket.resetAndDestroy()
         return
@@ -44,7 +45,7 @@ server.on('connection', socket => {
             socket.resetAndDestroy()
         } else {
             openSockets.push(socket)
-            const proxySocket = ProxySocket.from(socket)
+            const proxySocket = new ProxySocket(socket, now)
             if (OPT_LOG_CONNECTIONS) logEvent(proxySocket, 'peer connected')
             socket.on('close', () => {
                 openSockets = openSockets.filter(x => x !== socket)
