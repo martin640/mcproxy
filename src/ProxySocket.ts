@@ -111,9 +111,9 @@ export class ProxySocket {
             while (this._clientBufferOffset > 0) {
                 let parseResult: IncomingPacketParseResult
                 try {
-                    if (this._state === SocketState.HANDSHAKE) parseResult = parseIncomingPacket(this._clientBuffer, 0, IncomingPacketSource.CLIENT)
-                    else if (this._state === SocketState.STATUS) parseResult = parseIncomingPacket(this._clientBuffer, 1, IncomingPacketSource.CLIENT)
-                    else if (this._state === SocketState.LOGIN) parseResult = parseIncomingPacket(this._clientBuffer, 2, IncomingPacketSource.CLIENT)
+                    if (this._state === SocketState.HANDSHAKE) parseResult = parseIncomingPacket(this._clientBuffer, this._clientBufferOffset, 0, IncomingPacketSource.CLIENT)
+                    else if (this._state === SocketState.STATUS) parseResult = parseIncomingPacket(this._clientBuffer, this._clientBufferOffset, 1, IncomingPacketSource.CLIENT)
+                    else if (this._state === SocketState.LOGIN) parseResult = parseIncomingPacket(this._clientBuffer, this._clientBufferOffset, 2, IncomingPacketSource.CLIENT)
                     else break
                 } catch (e) {
                     if ((e as Error).message && OPT_LOG_DEBUG) {
@@ -151,7 +151,7 @@ export class ProxySocket {
             while (this._backendBufferOffset > 0) {
                 let parseResult: IncomingPacketParseResult
                 try {
-                    if (this._state === SocketState.STATUS) parseResult = parseIncomingPacket(this._backendBuffer, 1, IncomingPacketSource.BACKEND)
+                    if (this._state === SocketState.STATUS) parseResult = parseIncomingPacket(this._backendBuffer, this._backendBufferOffset, 1, IncomingPacketSource.BACKEND)
                     else break
                 } catch (e) {
                     if ((e as Error).message && OPT_LOG_DEBUG) {

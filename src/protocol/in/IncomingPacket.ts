@@ -79,6 +79,7 @@ export class CursoredBuffer {
     
     public readString(): string {
         const length = this.readVarInt()
+        if (length < 0) throw new Error('Invalid string length')
         if (length) {
             const str = this._buffer.subarray(this._cursor, this._cursor + length)
             this._cursor += length

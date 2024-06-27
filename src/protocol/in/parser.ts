@@ -14,12 +14,13 @@ export enum IncomingPacketSource {
     CLIENT, BACKEND
 }
 
-export const parseIncomingPacket = (b: Buffer, state: number, src: IncomingPacketSource): IncomingPacketParseResult => {
+export const parseIncomingPacket = (b: Buffer, l: number, state: number, src: IncomingPacketSource): IncomingPacketParseResult => {
     const reader = new CursoredBuffer(b)
     const length = reader.readVarInt() 
+    if (length <= 0) throw new Error(`Invalid packet length: ${length}`)
     let position = reader.position
     const id = reader.readVarInt()
-    if (b.length < (position + length)) throw new Error(`Expected buffer of size >= ${position + length}, got ${b.length}`)
+    if (l < (position + length)) throw new Error(`Expected buffer of size >= ${position + length}, got ${l}`)
     const raw = b.subarray(reader.position, position + length)
     let packet: IncomingPacket | null = null
     
