@@ -220,7 +220,11 @@ export const config: ConfigSchema = (() => {
         const rewrite = configYaml!.endpoints?.[x.name]!.rewrite
         if (rewrite) {
             const rewriteEndpoint = config.endpoints.find(x => x.hostname === rewrite)
-            if (rewriteEndpoint) x.backend = rewriteEndpoint.backend
+            if (rewriteEndpoint) {
+                x.backend = rewriteEndpoint.backend || x.backend
+                x.motd = rewriteEndpoint.motd || x.motd
+                x.version = rewriteEndpoint.version || x.version
+            }
         }
     })
     
