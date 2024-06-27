@@ -1,7 +1,7 @@
 import { Server, Socket } from 'net'
 import { ProxySocket } from './src/ProxySocket'
 import { config, OPT_LOG_CONNECTIONS, OPT_LOG_VERBOSE } from './config'
-import { logEvent } from './src/Logger'
+import { logEvent } from './src/logger'
 
 let openSockets: Socket[] = []
 let connectionIpCounter: [ string, number, number ][] = []

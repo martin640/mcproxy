@@ -1,6 +1,6 @@
 import { connect, Socket } from 'net'
 import { config, DISCONNECT_MESSAGE_DEFAULT, EndpointSchema, OPT_LOG_DEBUG, OPT_LOG_VERBOSE } from '../config'
-import { logEvent } from './Logger'
+import { logEvent } from './logger'
 import { HandshakeIncomingPacket } from './protocol/in/HandshakeIncomingPacket'
 import { HandshakeOutgoingPacket } from './protocol/out/HandshakeOutgoingPacket'
 import { StatusResponseOutgoingPacket } from './protocol/out/StatusResponseOutgoingPacket'
