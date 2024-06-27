@@ -31,7 +31,7 @@ export class CursoredBuffer {
     }
     
     public readByte() {
-        if (this._cursor >= this._buffer.length) return 0x00
+        if (this._cursor >= this._buffer.length) throw new Error('readByte out of bounds')
         return this._buffer[this._cursor++]
     }
     
@@ -68,11 +68,13 @@ export class CursoredBuffer {
     }
     
     public readUShort(): number {
+        if ((this._cursor + 2) > this._buffer.length) throw new Error('readUShort out of bounds')
         this._cursor += 2
         return this._buffer.readUintBE(this._cursor - 2, 2)
     }
     
     public readLong(): bigint {
+        if ((this._cursor + 8) > this._buffer.length) throw new Error('readLong out of bounds')
         this._cursor += 8
         return this._buffer.readBigInt64BE(this._cursor - 8)
     }
@@ -81,6 +83,7 @@ export class CursoredBuffer {
         const length = this.readVarInt()
         if (length < 0) throw new Error('Invalid string length')
         if (length) {
+            if ((this._cursor + length) > this._buffer.length) throw new Error('readString out of bounds')
             const str = this._buffer.subarray(this._cursor, this._cursor + length)
             this._cursor += length
             return str.toString('utf-8')
